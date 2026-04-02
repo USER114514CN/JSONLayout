@@ -31,7 +31,7 @@
             },
             {
                 "class": "java.awt.Button",
-                "text": "Click Me!"
+                "label": "Click Me!"
             }
         ]
     }
@@ -55,6 +55,7 @@ public class MyComponent {
     public void setSize(int size) {
         this.size = size;
     }
+}
 
 ```
 

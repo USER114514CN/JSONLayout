@@ -39,6 +39,8 @@ public class Test {
         loader.loadLayout(json);
 
         windowFrame.setVisible(true);
+        // GitHub 仓库地址：https://github.com/USER114514CN/JSONLayout/
+
         // 一定要成功！！！！！！！！！！！！！！！
         // 这段代码是用来测试 LayoutLoader 的，看看它能不能正确地解析 JSON 配置并创建一个窗口，窗口里有一个标签和一个按钮，布局是 FlowLayout，窗口标题是 "Test Window"，大小是 400x300，位置在屏幕中央。
         // 成败就在这一瞬间了！！！！！！！！！！！！！！！
@@ -75,5 +77,7 @@ public class Test {
         // 成成成成成成成成成成成成成成成功了！！！！！！！！！！！！！！
         // 我有出息了！！！！！！！！！！！！！！
         // 俺不是孬种🤗🤗🤗
+
+        // 又来了一把 Minecraft Bedwars，结果又遇到堵出生点的了，气死我了😡😡😡😡
     }
 }

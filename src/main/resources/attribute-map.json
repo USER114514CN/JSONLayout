@@ -16,7 +16,6 @@
     },
     "java.awt.Button": {
         "settable": true,
-        "text": "setText",
         "font": "setFont",
         "foreground": "setForeground",
         "background": "setBackground",

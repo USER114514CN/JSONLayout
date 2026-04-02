@@ -1,3 +1,5 @@
+// 再也不不写注释了
+
 package com.user114514.jsonlayout.core;
 
 import org.json.*;
@@ -8,9 +10,12 @@ import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 public class LayoutLoader {
+    // 这个类是整个库的核心，负责解析 JSON 配置并构建 GUI 布局
 
     private Frame mRootFrame;
     private ClassLoader mClassLoader;
@@ -33,27 +38,37 @@ public class LayoutLoader {
         }
     }
 
-    public void loadLayout(JSONObject json) {
+    public void loadLayout(String jsonString) throws ClassNotFoundException {
+        JSONObject json = new JSONObject(jsonString);
+        loadLayout(json);
+    }
+
+    public void loadLayout(JSONObject json) throws ClassNotFoundException {
         JSONObject layoutObject = json.optJSONObject("rootLayout");
         for (String key : layoutObject.keySet()) {
             switch (key) {
                 case "layout":
-                    this.mRootFrame.setLayout((LayoutManager) loadObject(LayoutManager.class, layoutObject.optJSONObject(key)));
+                    JSONObject layoutJsonObject = layoutObject.optJSONObject(key);
+                    Class<?> layoutClass = Class.forName(layoutJsonObject.optString("class"));
+                    this.mRootFrame.setLayout((LayoutManager) loadObject(layoutClass, layoutJsonObject));
                     break;
                 case "contents":
                     JSONArray contentsArray = layoutObject.optJSONArray(key);
                     for (Object element : contentsArray) {
                         JSONObject contentObject = (JSONObject) element;
-                        this.mRootFrame.add(loadObject(Component.class, contentObject));
+                        Class<?> contentsLayoutClass = Class.forName(contentObject.optString("class"));
+                        this.mRootFrame.add((Component) loadObject(contentsLayoutClass, contentObject));
                     }
                     break;
                 case "title":
                     this.mRootFrame.setTitle(layoutObject.optString(key));
                     break;
                 case "size":
+                    // 或许这里不需要判断了，毕竟 size 只能是 Dimension 对象
                     this.mRootFrame.setSize(loadObject(Dimension.class, layoutObject.optJSONObject(key)));
                     break;
                 case "location":
+                    // 原因同上，location 只能是 Point 对象或者 "center" 字符串
                     Object locationValue = layoutObject.opt(key);
                     if (locationValue instanceof JSONObject) {
                         this.mRootFrame.setLocation(loadObject(Point.class, (JSONObject) locationValue));
@@ -68,7 +83,68 @@ public class LayoutLoader {
     }
 
     private <T> T loadObject(Class<T> clazz, JSONObject object) {
-        if (!this.mAttributeMap.has(clazz.getName())) throw new RuntimeException("Not found class attribute map.");
+        if (object == null) throw new RuntimeException("JSONObject is null.");
+        if (!clazz.getName().equals(object.optString("class")))
+            throw new RuntimeException("Class mismatch.");
+        object.remove("class"); // 这个属性已经没什么意义了，反正我们已经拿到 Class 对象了，如果不 remove 掉的话后面还会被当成一个属性来处理，疯狂抛异常，然后我就急哭了。
+        // if (!this.mAttributeMap.has(clazz.getName())) throw new RuntimeException("Not found class attribute map.");
+        // 我才发现我上面那一行代码让 JSONConvertable 变成摆设
+        if (!this.mAttributeMap.has(clazz.getName())) {
+            if (!clazz.isAnnotationPresent(JSONConvertable.class)) {
+                // 你连这个类都没有标记成 JSONConvertable，你还想让我帮你解析？
+                // 回去再把README.md好好看看吧
+                throw new RuntimeException("Class '" + clazz.getName() + "' is not JSONConvertable.");
+            }
+            Map<String, Method> setterMap = new HashMap<>();
+            for (Method method : clazz.getDeclaredMethods()) {
+                if (method.isAnnotationPresent(SetterInvokable.class)) {
+                    SetterInvokable annotation = method.getAnnotation(SetterInvokable.class);
+                    setterMap.put(annotation.name(), method);
+                }
+            }
+            T instance;
+            Constructor<T> constructor;
+            try {
+                constructor = clazz.getDeclaredConstructor();
+                constructor.setAccessible(true);
+                instance = constructor.newInstance();
+            } catch (NoSuchMethodException e) {
+                // 你都没有无参构造器了还想让我帮你解析？回去再把README.md好好看看吧
+                throw new RuntimeException("Class '" + clazz.getName() + "' does not have a no-argument constructor.");
+                // 我要疯狂抛异常烦死你😈😈😈
+            } catch (SecurityException e) {
+                // 你都没有无参构造器了还想让我帮你解析？回去再把README.md好好看看吧
+                throw new RuntimeException("Class '" + clazz.getName() + "' does not have a no-argument constructor.");
+                // 我要疯狂抛异常烦死你😈😈😈
+            } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+                throw new RuntimeException("Failed to instantiate class '" + clazz.getName() + "'.", e);
+            }
+            
+
+            for (String keyName : object.keySet()) {
+                Object value = object.opt(keyName);
+                if (!setterMap.containsKey(keyName)) throw new UnknownAttributeException("Unknow attribute name: " + keyName);
+                Method method = setterMap.get(keyName);
+                if (method.getParameterCount() != 1) throw new RuntimeException("Setter method must have exactly one parameter: " + method.getName());
+                Class<?> paramClass = (object.opt(keyName).getClass().equals(JSONObject.class) ? method.getParameterTypes()[0] : object.opt(keyName).getClass());
+                if (!(value.getClass().equals(JSONObject.class) ? object.optJSONObject(keyName).optString("class") : value.getClass().getName()).equals(paramClass.getName())){
+                    // 不匹配就是不匹配哪来那么多废话
+                    throw new RuntimeException("Type mismatch for attribute '" + keyName + "': expected " + paramClass.getName() + " but got " + (object.opt(keyName).getClass().equals(JSONObject.class) ? object.optJSONObject(keyName).optString("class") : object.opt(keyName).getClass().getName()));
+                }
+                method.setAccessible(true);
+                try {
+                    method.invoke(instance, (object.opt(keyName).getClass().equals(JSONObject.class) ? loadObject(paramClass, object.optJSONObject(keyName)) : object.opt(keyName)));
+                } catch (IllegalAccessException e) {
+                    // 666还不让我访问
+                    throw new RuntimeException("Failed to invoke setter method '" + method.getName() + "' for attribute '" + keyName + "'.", e);
+                } catch (InvocationTargetException e) {
+                    // 666方法内部自己抛异常了
+                    // 我把根本原因包装起来抛出，反正我也不想让用户看到那么多反射相关的异常了，还不快谢谢我
+                    throw new RuntimeException("Failed to invoke setter method '" + method.getName() + "' for attribute '" + keyName + "'.", e.getCause());
+                }
+            }
+            return instance;
+        }
         JSONObject classObject = this.mAttributeMap.getJSONObject(clazz.getName());
         boolean settable = classObject.optBoolean("settable");
         if (!settable) {
@@ -117,6 +193,7 @@ public class LayoutLoader {
                     boolean isUnhandled = paramClass.equals(JSONObject.class);
                     Class<?> realClass = (isUnhandled ? Class.forName(object.optJSONObject(keyName).optString("class")) : paramClass);
                     Method method = clazz.getDeclaredMethod(methodName, realClass);
+                    method.setAccessible(true);
                     method.invoke(instance, (isUnhandled ? loadObject(realClass, object.optJSONObject(keyName)) : object.opt(keyName)));
                 }
                 return instance;
@@ -151,3 +228,9 @@ public class LayoutLoader {
     }
 
 }
+
+// 我有点后悔不加注释了
+// 现在我全都看不懂😭😭😭
+
+// 傻子豆包把我的注释改的一点人情味都没有了，害我都不想写了😭😭😭
+// 信不信我以后把我的主力 AI 换成 DeepSeek😈😈😈

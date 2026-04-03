@@ -1,5 +1,8 @@
 // 再也不不写注释了
 
+//这应该算是alpha版本吧
+
+
 package com.user114514.jsonlayout.core;
 
 import org.json.*;
@@ -96,7 +99,7 @@ public class LayoutLoader {
                 throw new RuntimeException("Class '" + clazz.getName() + "' is not JSONConvertable.");
             }
             Map<String, Method> setterMap = new HashMap<>();
-            for (Method method : clazz.getDeclaredMethods()) {
+            for (Method method : clazz.getMethods()) {
                 if (method.isAnnotationPresent(SetterInvokable.class)) {
                     SetterInvokable annotation = method.getAnnotation(SetterInvokable.class);
                     setterMap.put(annotation.name(), method);
@@ -187,14 +190,26 @@ public class LayoutLoader {
                 constructor.setAccessible(true);
                 T instance = constructor.newInstance();
                 for (String keyName : object.keySet()) {
+                    if (keyName.equals("contents")) continue; // contents 需要单独处理，不能当成一个属性来处理，不然就炸了
                     if (!classObject.has(keyName)) throw new UnknownAttributeException("Unknow attribute name: " + keyName);
                     String methodName = classObject.optString(keyName);
                     Class<?> paramClass = object.opt(keyName).getClass();
                     boolean isUnhandled = paramClass.equals(JSONObject.class);
                     Class<?> realClass = (isUnhandled ? Class.forName(object.optJSONObject(keyName).optString("class")) : paramClass);
-                    Method method = clazz.getDeclaredMethod(methodName, realClass);
+                    Method method = clazz.getMethod(methodName, realClass);
                     method.setAccessible(true);
                     method.invoke(instance, (isUnhandled ? loadObject(realClass, object.optJSONObject(keyName)) : object.opt(keyName)));
+                }
+                // 这边我要单独处理 Panel 的 contents 属性，因为它需要调用 add 方法而不是 set 方法，高斯林和甲骨文你们这是在搞事吗？我已急哭
+                if (clazz.equals(Panel.class) && object.has("contents")) {
+                    JSONArray contentsArray = object.optJSONArray("contents");
+                    for (Object element : contentsArray) {
+                        JSONObject contentObject = (JSONObject) element;
+                        Class<?> contentsLayoutClass = Class.forName(contentObject.optString("class"));
+                        Method addMethod = clazz.getMethod("add", Component.class);
+                        addMethod.setAccessible(true);
+                        addMethod.invoke(instance, loadObject(contentsLayoutClass, contentObject));
+                    }
                 }
                 return instance;
             } catch (NoSuchMethodException | SecurityException | InstantiationException | IllegalArgumentException | InvocationTargetException | IllegalAccessException | ClassNotFoundException e) {
@@ -234,3 +249,5 @@ public class LayoutLoader {
 
 // 傻子豆包把我的注释改的一点人情味都没有了，害我都不想写了😭😭😭
 // 信不信我以后把我的主力 AI 换成 DeepSeek😈😈😈
+
+// 哎不是气死我了 JSON 用不了注释，啥意思啊，乐子吗，狗屎一枚

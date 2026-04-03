@@ -1,0 +1,27 @@
+{
+    "rootLayout": {
+        "layout": {
+            "class": "java.awt.FlowLayout",
+            "align": 1,
+            "hgap": 10,
+            "vgap": 10
+        },
+        "size": {
+            "class": "java.awt.Dimension",
+            "width": 400,
+            "height": 300
+        },
+        "title": "Test Window",
+        "location": "center",
+        "contents": [
+            {
+                "class": "java.awt.Label",
+                "text": "Hello, World!"
+            },
+            {
+                "class": "java.awt.Button",
+                "text": "Click Me!"
+            }
+        ]
+    }
+}

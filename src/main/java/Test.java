@@ -7,34 +7,51 @@ public class Test {
         Frame windowFrame = new Frame();
 
         String json = """
-                {
-                    "rootLayout": {
-                        "layout": {
-                            "class": "java.awt.FlowLayout",
-                            "align": 1,
-                            "hgap": 10,
-                            "vgap": 20
+        {
+            "rootLayout": {
+                "title": "Panel contents 测试",
+                "size": {
+                    "class": "java.awt.Dimension",
+                    "width": 500,
+                    "height": 400
+                },
+                "location": "center",
+                "layout": {
+                    "class": "java.awt.FlowLayout"
+                },
+                "contents": [
+                    {
+                        "class": "java.awt.Panel",
+                        "background": {
+                            "class": "java.awt.Color",
+                            "red": 200,
+                            "green": 200,
+                            "blue": 255
                         },
-                        "title": "Test Window",
-                        "size": {
-                            "class": "java.awt.Dimension",
-                            "width": 400,
-                            "height": 300
-                        },
-                        "location": "center",
                         "contents": [
                             {
                                 "class": "java.awt.Label",
-                                "text": "Label 1"
+                                "text": "我在 Panel 里面！"
                             },
                             {
                                 "class": "java.awt.Button",
-                                "label": "Button 2"
+                                "label": "Panel按钮1"
+                            },
+                            {
+                                "class": "java.awt.Button",
+                                "label": "Panel按钮2"
                             }
                         ]
+                    },
+                    {
+                        "class": "java.awt.Label",
+                        "text": "我在外面，不在Panel里"
                     }
-                }
+                ]
+            }
+        }
         """;
+        
         LayoutLoader loader = new LayoutLoader(windowFrame);
         loader.loadLayout(json);
 
@@ -49,7 +66,7 @@ public class Test {
         // 哈哈骗你的，他说我类型不匹配，翻车了，哭死了😭😭😭
 
         // 现在又是 NoSuchMethodException，哭死了😭😭😭
-        // Button 没有 setText 方法，Label 也没有 setText 方法，哈哈哈哈哈，居然把这个细节忘了，哭死了😭😭😭
+        // Button 没有 setText 方法，Label 也没有 setText 方法，哈哈哈哈哈，居然把这个细节忘了，哭死了😭😭😭 (后续证明不是的)
         // 这咋办...我这个代码对于settable是非黑即白的，要么全用setter，要么全用构造器参数，不能混用
         // 我得重新设计一下这个系统，让它更灵活一点
         // 但是我现在太累了，先放一放吧，等我休息好了再说
@@ -79,5 +96,23 @@ public class Test {
         // 俺不是孬种🤗🤗🤗
 
         // 又来了一把 Minecraft Bedwars，结果又遇到堵出生点的了，气死我了😡😡😡😡
+
+        // 2026年4月3日17:44:56
+        // 我刚刚加入了Panel的contents属性，不知道能不能成……
+        // Exception in thread "main" java.lang.RuntimeException: java.lang.NoSuchMethodException: java.awt.Panel.setBackground(java.lang.String)
+        // ……
+        // 豆包你个傻子，Panel的setBackground方法需要一个Color对象，而不是一个字符串，你还想让我怎么处理这个属性啊，你这是在搞事吗？我已急哭🤗🤗🤗🤗
+        // Exception in thread "main" java.lang.RuntimeException: java.lang.NoSuchMethodException: java.awt.Panel.setBackground(java.awt.Color)
+        // 这有点离谱了，怎么可能会这样，他说java.lang.NoSuchMethodException: java.awt.Panel.setBackground(java.awt.Color)，但是不是有setBackground方法，参数也是Color啊...... 
+        // 我问问 Github Copilot
+        // Copilot: 你确定你传入的参数是java.awt.Color类型吗？你可以在调用setBackground方法之前打印一下参数的类型，看看是不是Color对象。
+        // 我一直用的是java.awt.Color啊，他还告诉我没有java.awt.Panel.setBackground(java.awt.Color)这个方法，不可能啊，Java这是左右脑互搏吗？
+        // 这有点离谱了，怎么可能会这样，他说java.lang.NoSuchMethodException: java.awt.Panel.setBackground(java.awt.Color)，但是不是有setBackground方法，参数也是Color啊......
+        // 我问问 Github Copilot
+        // Copilot: 既然你确定你传入的参数是java.awt.Color类型，那么可能是因为你在调用setBackground方法之前没有正确地导入java.awt.Color类，或者你的代码中有多个Color类导致了命名冲突。你可以检查一下你的import语句，确保你导入的是java.awt.Color类，并且在使用Color对象时使用全限定名来避免命名冲突。
+        // 导入了java.awt.Color了啊，命名冲突也没有啊，我的代码里只有一个Color类啊，Java这是在他妈的整我吗😱😱😱😱😱😱😱😱😱😱😡🥴🥴🥵🥵🥵😭😭😭😭😭
+        // 你妈setBackground方法是Panel的父类Component的方法啊，getDeclaredMethod只能获取Panel自己声明的方法，不能获取父类的方法啊，啥子嘛，好吧，我要把getDeclaredMethod改成getMethod了，看看能不能解决问题，Java我***你妈啊
+        // 我用 Ctrl+H 替换了 getDeclaredMethod 为 getMethod
+        // 成功了！！！！！！！！！！！！！！
     }
 }

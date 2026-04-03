@@ -205,12 +205,12 @@
             }
         ]
     },
-    "java.awt.BoxLayout": {
+    "javax.swing.BoxLayout": {
         "settable": false,
         "paramsGroups": [
             {
                 "params-names": ["target", "axis"],
-                "constructor-params-types": ["Container", "int"]
+                "constructor-params-types": ["java.awt.Container", "int"]
             }
         ]
     },

@@ -52,14 +52,14 @@ public class LayoutLoader {
             switch (key) {
                 case "layout":
                     JSONObject layoutJsonObject = layoutObject.optJSONObject(key);
-                    Class<?> layoutClass = Class.forName(layoutJsonObject.optString("class"));
+                    Class<?> layoutClass = loadClassByFullName(layoutJsonObject.optString("class"), layoutJsonObject);
                     this.mRootFrame.setLayout((LayoutManager) loadObject(layoutClass, layoutJsonObject));
                     break;
                 case "contents":
                     JSONArray contentsArray = layoutObject.optJSONArray(key);
                     for (Object element : contentsArray) {
                         JSONObject contentObject = (JSONObject) element;
-                        Class<?> contentsLayoutClass = Class.forName(contentObject.optString("class"));
+                        Class<?> contentsLayoutClass = loadClassByFullName(contentObject.optString("class"), contentObject);
                         this.mRootFrame.add((Component) loadObject(contentsLayoutClass, contentObject));
                     }
                     break;
@@ -84,14 +84,31 @@ public class LayoutLoader {
             }
         }
     }
-
+    @SuppressWarnings("unchecked")
     private <T> T loadObject(Class<T> clazz, JSONObject object) {
         if (object == null) throw new RuntimeException("JSONObject is null.");
+        if (object.opt("class") == null) throw new RuntimeException("Missing 'class' attribute.");
+        if (object.optString("class").equals("CONST")) {
+            // 有点问题，我竟然发现class写CONST到不了这个分支，让我DEBUG一下
+            // JSON 引用 Java 常量
+            // 我本来想用字符串的，但是为了避免歧义用 JSON 对象才能引用
+            T value;
+            try {
+                value = (T) getFieldValueByString(object.optString("name"));
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("Unknow class: " + e.getMessage());
+            } catch (NoSuchFieldException e) {
+                throw new RuntimeException("Unknow constant: " + e.getMessage());
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException("Failed to access constant: " + e.getMessage());
+
+            }
+            return value;
+        }
         if (!clazz.getName().equals(object.optString("class")))
             throw new RuntimeException("Class mismatch.");
         object.remove("class"); // 这个属性已经没什么意义了，反正我们已经拿到 Class 对象了，如果不 remove 掉的话后面还会被当成一个属性来处理，疯狂抛异常，然后我就急哭了。
         // if (!this.mAttributeMap.has(clazz.getName())) throw new RuntimeException("Not found class attribute map.");
-        // 我才发现我上面那一行代码让 JSONConvertable 变成摆设
         if (!this.mAttributeMap.has(clazz.getName())) {
             if (!clazz.isAnnotationPresent(JSONConvertable.class)) {
                 // 你连这个类都没有标记成 JSONConvertable，你还想让我帮你解析？
@@ -195,7 +212,7 @@ public class LayoutLoader {
                     String methodName = classObject.optString(keyName);
                     Class<?> paramClass = object.opt(keyName).getClass();
                     boolean isUnhandled = paramClass.equals(JSONObject.class);
-                    Class<?> realClass = (isUnhandled ? Class.forName(object.optJSONObject(keyName).optString("class")) : paramClass);
+                    Class<?> realClass = (isUnhandled ? loadClassByFullName(object.optJSONObject(keyName).optString("class"), object.optJSONObject(keyName)) : paramClass);
                     Method method = clazz.getMethod(methodName, realClass);
                     method.setAccessible(true);
                     method.invoke(instance, (isUnhandled ? loadObject(realClass, object.optJSONObject(keyName)) : object.opt(keyName)));
@@ -205,14 +222,23 @@ public class LayoutLoader {
                     JSONArray contentsArray = object.optJSONArray("contents");
                     for (Object element : contentsArray) {
                         JSONObject contentObject = (JSONObject) element;
-                        Class<?> contentsLayoutClass = Class.forName(contentObject.optString("class"));
+                        Class<?> contentsLayoutClass;
+                        try {
+                            contentsLayoutClass = (contentObject.optString("class").equals("CONST") ? getFieldValueByString(contentObject.optString("name")).getClass() : loadClassByFullName(contentObject.optString("class"), contentObject));
+                        } catch (NoSuchFieldException e) {
+                            throw new RuntimeException("Unknow constant: " + e.getMessage());
+                        } catch (ClassNotFoundException e) {
+                            throw new RuntimeException("Unknow class: " + e.getMessage());
+                        } catch (IllegalAccessException e) {
+                            throw new RuntimeException("Failed to access constant: " + e.getMessage());
+                        }
                         Method addMethod = clazz.getMethod("add", Component.class);
                         addMethod.setAccessible(true);
                         addMethod.invoke(instance, loadObject(contentsLayoutClass, contentObject));
                     }
                 }
                 return instance;
-            } catch (NoSuchMethodException | SecurityException | InstantiationException | IllegalArgumentException | InvocationTargetException | IllegalAccessException | ClassNotFoundException e) {
+            } catch (NoSuchMethodException | SecurityException | InstantiationException | IllegalArgumentException | InvocationTargetException | IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -238,10 +264,45 @@ public class LayoutLoader {
             case "string":
                 return String.class;
             default:
-                return Class.forName(name);
+                return loadClassByFullName(name, null);
         }
     }
 
+    private Object getFieldValueByString(String fullName) throws ClassNotFoundException, NoSuchFieldException, IllegalAccessException {
+        int lastDotIndex = fullName.lastIndexOf(".");
+        if (lastDotIndex == -1) throw new RuntimeException("Invalid field name: " + fullName);
+        String className = fullName.substring(0, lastDotIndex);
+        String fieldName = fullName.substring(lastDotIndex + 1);
+        Class<?> clazz = Class.forName(className);
+        return clazz.getField(fieldName).get(null);
+    }
+
+    private Class<?> loadClassByFullName(String fullName, JSONObject object) {
+        if (object == null) {
+            try {
+                return Class.forName(fullName);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("Unknow class: " + fullName, e);
+            }
+        }
+        if (fullName.equals("CONST")) {
+            try {
+                return getFieldValueByString(object.optString("name")).getClass();
+            } catch (NoSuchFieldException e) {
+                throw new RuntimeException("Unknow constant: " + e.getMessage());
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("Unknow class: " + e.getMessage());
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException("Failed to access constant: " + e.getMessage());
+            }
+        } else {
+            try {
+                return Class.forName(fullName);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("Unknow class: " + fullName, e);
+            }
+        }
+    }
 }
 
 // 我有点后悔不加注释了

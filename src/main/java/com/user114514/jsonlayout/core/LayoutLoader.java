@@ -47,6 +47,7 @@ public class LayoutLoader {
     }
 
     public void loadLayout(JSONObject json) throws ClassNotFoundException {
+        JSONObject headerObject = json.optJSONObject("header");
         JSONObject layoutObject = json.optJSONObject("rootLayout");
         for (String key : layoutObject.keySet()) {
             switch (key) {
@@ -110,10 +111,10 @@ public class LayoutLoader {
         object.remove("class"); // 这个属性已经没什么意义了，反正我们已经拿到 Class 对象了，如果不 remove 掉的话后面还会被当成一个属性来处理，疯狂抛异常，然后我就急哭了。
         // if (!this.mAttributeMap.has(clazz.getName())) throw new RuntimeException("Not found class attribute map.");
         if (!this.mAttributeMap.has(clazz.getName())) {
-            if (!clazz.isAnnotationPresent(JSONConvertable.class)) {
-                // 你连这个类都没有标记成 JSONConvertable，你还想让我帮你解析？
+            if (!clazz.isAnnotationPresent(JsonConvertible.class)) {
+                // 你连这个类都没有标记成 JSONConvertible，你还想让我帮你解析？
                 // 回去再把README.md好好看看吧
-                throw new RuntimeException("Class '" + clazz.getName() + "' is not JSONConvertable.");
+                throw new RuntimeException("Class '" + clazz.getName() + "' is not JSONConvertible.");
             }
             Map<String, Method> setterMap = new HashMap<>();
             for (Method method : clazz.getMethods()) {
@@ -307,8 +308,5 @@ public class LayoutLoader {
 
 // 我有点后悔不加注释了
 // 现在我全都看不懂😭😭😭
-
-// 傻子豆包把我的注释改的一点人情味都没有了，害我都不想写了😭😭😭
-// 信不信我以后把我的主力 AI 换成 DeepSeek😈😈😈
 
 // 哎不是气死我了 JSON 用不了注释，啥意思啊，乐子吗，狗屎一枚

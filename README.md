@@ -38,9 +38,9 @@
 }
 ```
 
-## JSONConvertable注解示例
+## JSONConvertible注解示例
 ```java
-@JSONConvertable
+@JSONConvertible
 public class MyComponent { 
     private String text;
     private int size;
@@ -59,8 +59,8 @@ public class MyComponent {
 
 ```
 
-***关于JSONConvertabe注解的注意事项***
+***关于JSONConvertible注解的注意事项***
 
-1.被标记JSONConvertable的类必须有一个无参public构造器。
+1.被标记JSONConvertible的类必须有一个无参public构造器。
 
 2.被标记SetterInvokable的方法必须为public，只有一个参数。
